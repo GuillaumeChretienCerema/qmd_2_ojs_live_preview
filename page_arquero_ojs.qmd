@@ -1,0 +1,245 @@
+---
+title: "Exemple avec chargement de la data"
+subtitle: "Observable JavaScript avec WidgetHTML : tableau, graphe, carte, inline code"
+toc: true
+theme: lumen
+format:
+  html:
+    page-layout: full
+    code-fold: true 
+    code-summary: "Afficher le code" 
+    code-tools: true
+execute: 
+  warning: false
+resources: "data/donnees_combined.csv"
+---
+
+<!-- astuce : taper dans la console la ligne ci-dessous puis flèche vers le haut pour la rappeler, ça évite un terminal et ça fait une seule action -->
+<!-- rstudioapi::documentSave();system("node convert.js page_arquero_ojs.qmd") -->
+
+> Un exemple pour voir si la page arrive bien à charger un csv dans le répertoire data/ et à l'exploiter avec des librairies js.
+
+## La doc arquero
+
+[Introduction à Arquero](https://observablehq.com/@uwdata/introducing-arquero?collection=@uwdata/arquero)\
+[Un cookbook](https://observablehq.com/@uwdata/arquero-cookbook)\
+[Illustration en image des verbes d'arquero](https://observablehq.com/@uwdata/an-illustrated-guide-to-arquero-verbs?collection=@uwdata/arquero)\
+[Doc complète](https://idl.uw.edu/arquero/api/)
+
+## Chargement des librairies, du csv et tableau de donnée
+
+Ici les données ont été préparées au "format long", c'est un format très pratique pour simplement faire des filtres par la suite et pouvoir représenter des "séries" de données.\
+La donnée est complexe : elle comprend à la queuleuleue les données des quartiers mais aussi les données des quartiers agrégées à la commune, département, région.
+
+```{ojs}
+import { aq, op } from '@uwdata/arquero' // le dplyr ou pandas du javascript
+```
+
+```{ojs}
+// la donnée sera un dataframe au format arquero, ce format est compatible directement avec la librairie plot intégré de ojs (sinon il est nécessaire de retransformer la donnée en object javascript pour les autres librairies)
+myData = aq.loadCSV("./data/donnees_combined.csv");
+```
+
+```{ojs}
+Inputs.table(myData)
+```
+
+## Filtre pour sélectionner les indicateurs tranche d'âge
+
+Un simple filtre permet de sélectionner tous les indicateurs relatifs aux tranches d'âge.
+
+```{ojs}
+myDataTrancheAge = myData
+  .filter(d => op.includes(d.indicateur, '_ans'))
+```
+
+```{ojs}
+// Afficher la donnée
+Inputs.table(myDataTrancheAge)
+```
+
+
+Ensuite, OJS contient tous les `input` de base, voici un exemple avec un slider
+
+```{ojs}
+viewof myQuartier = Inputs.range([1, 342], {step: 1, label: "Choisir un quartier"})
+```
+
+On peut lier cet input à un filtre. Dès que l'on change la valeur du input, cela recalcule tous les blocs de code qui contiennent `myQuartier`.
+
+```{ojs}
+// Pourquoi aq.escape ? pour pouvoir mettre une variable extérieur au dataframe, aq.escape permet d'écrire du javascript vanilla à l'intérieur des verbes d'arquero
+myDataQuartier = myDataTrancheAge
+  .filter(aq.escape(d => d.id== myQuartier && d.echelle == 'recoquartier'))
+```
+
+```{ojs}
+// Afficher les données
+Inputs.table(myDataQuartier)
+```
+
+
+Et pour avoir un graphe interactif, il suffit de prendre entrée la variable filtrée selon le input.
+
+```{ojs}
+Plot.plot({
+  title: "Ceci est un test",
+  subtitle:"sous titre",
+  marginLeft: 45,
+  color: {legend: true, scheme:"reds" },
+  marks: [
+    Plot.barX(
+      myDataQuartier,
+        { x: "valeur" , y : "id", fill: "indicateur"}
+    )
+  ]
+})
+```
+
+## Exemple plus complet de texte, tableau et graphe
+
+### Préparation des données pour le Inputs.select
+
+Au préalable, on prépare des données sur mesure pour notre Input pour choisir un quartier et on formate ça aux petits oignons : selection de colonnes, filtre, pivot.
+
+```{ojs}
+
+// la librairie arquero permet de chaîner les traitements comme en R ou Python
+dataSelectQ = myData
+                .select('id','indicateur','valeur')
+                .filter(aq.escape(d => d.indicateur == 'commune' || d.indicateur == 'nom_iris'))
+                .groupby('id')
+                .pivot('indicateur', 'valeur')
+```
+                
+```{ojs}
+// Afficher la donnée
+Inputs.table(dataSelectQ)
+```
+
+### Données quartier avec référent régional, stackBar
+
+```{ojs}
+// Le menu déroulant
+viewof Q = Inputs.select(dataSelectQ, {label: "Choisir un quartier", format: d => `n° ${d.id}-${d.commune} (${d.nom_iris})` })
+```
+
+**Vous avez sélectionner le quartier 🏢 n° \${Q.id} situé sur la commune de \${Q.commune} (IRIS : \${Q.nom_iris})**
+
+::::: grid
+::: {.g-col-sm-12 .g-col-md-7}
+Les données étant au format long, il suffit de filtrer :
+
+-   selon l'identifiant du quartier
+-   selon la valeur de l'échelle géographique (avec un ou qui s'écrit \|\| en javascript)
+-   selon les libellés des indicateurs que l'on veut représenter
+
+```{ojs}
+// Préparation de la donnée avec arquero :
+myDataGrapheStackBar = myData
+                  .filter( aq.escape(d => (d.id== Q.id && d.echelle == 'recoquartier') || d.echelle == 'multi_recoquartiers_region'  ) )
+                  .filter( d => op.includes(d.indicateur, '_ans') )
+                  .select('echelle','indicateur','valeur')
+```
+
+```{ojs}
+// Un tableau sur 2 colonnes en faisant un pivot à la volée
+Inputs.table(
+  myDataGrapheStackBar.groupby('indicateur').pivot('echelle','valeur'), {
+  header: {
+    multi_recoquartiers_region: "Ensemble des RecoQ",
+    recoquartier: `RecoQ n° ${Q.id}`
+  },
+  align: {
+    multi_recoquartiers_region: "center",
+    recoquartier: "center"
+  }
+})
+```
+:::
+
+::: {.g-col-sm-12 .g-col-md-5}
+La librairie plot permet de créer la plupart des graphes. Très élégante dans sa conception, elle est un peu difficile à prendre en main... mais une fois la logique comprise elle permet de faire des graphes sur mesure complètement responsive design.
+
+```{ojs}
+// Des stack bar série               
+Plot.plot({
+  marginLeft: 45,
+  marginBottom: 60,
+  marginTop: 60,
+  style: {fontSize: "25px"},
+  color: {legend: true },
+  marks: [
+    Plot.barY(
+      myDataGrapheStackBar,
+        { x : "echelle" ,y: "valeur" , fill: "indicateur", offset: "normalize", tip: true}
+    )
+  ]
+})
+```
+:::
+:::::
+
+### Boîtes à moustache + symboles
+
+```{ojs}
+// Un exemple de la vraie vie, pour faire ce graphe, les valeurs n'ont pas été comprises comme des nombres mais comme du texte, en javascript on utilise parseFloat pour convertir ce texte en nombre et cela s'intègre bien dans un traitement arquero
+
+myDataBoxPlot = myData
+                  .filter( d => d.echelle == 'recoquartier')
+                  .filter( d => op.includes(d.indicateur, '_ans') )
+                  .derive({
+                    valeurNumber: aq.escape(d => parseFloat(d.valeur))
+                  })
+                  .select('id','echelle','indicateur','valeurNumber')
+```
+
+```{ojs}
+myDataBoxPlotQ = myDataBoxPlot.filter(aq.escape(d => d.id == Q.id))
+
+//Inputs.table(myDataBoxPlotQ)
+```
+
+```{ojs}
+Plot.plot({
+  caption: "Les boîtes à moustache représentent la dispersion des valeurs de l'ensemble des quartiers par tranche d'âge, les symboles représentent les valeurs du quartier sélectionné",
+  y: {
+    grid: true
+  },
+  color: {legend:true, style: {fontSize: "14px"}},
+  symbol: {legend: true, style: {fontSize: "14px"}},
+  style: {fontSize: "14px"},
+  marginBottom: 40,
+  marginTop: 20,
+  marks: [
+    // boîte à moustache en série pour réprésenter l'ensemble des quartiers
+    Plot.boxY(myDataBoxPlot, {x: "indicateur", y: "valeurNumber", fill:"indicateur"}),
+
+    // et un symbole pour positionner le quartier sélectionné
+    Plot.dot(myDataBoxPlotQ, {
+      x: "indicateur", 
+      y: "valeurNumber", 
+      fill: "white", 
+      stroke:"black", 
+      r: 5, 
+      symbol: "indicateur",
+      // un canal permet de rajouter des informations sur mesure à partir des données
+      channels: {
+        quartier: {
+          value: "id",
+          label: "Quartier n°"
+        },
+      },
+      tip: {
+        format: {
+          quartier: true,
+          id:true,
+          indicateur: true,
+          y: (d) => `${d*100} %`,
+          stroke: false
+        }
+      }
+    })
+  ]
+})
+```

@@ -1,0 +1,19 @@
+<!doctype html>
+<notebook theme="air">
+  <title>OJS HotReload in Quarto (experimental)</title>
+  <script id="0" type="text/markdown">
+    # OJS HotReload in Quarto (experimental)
+  </script>
+  <script id="1" type="application/vnd.observable.javascript" pinned="">
+    x = 7 + 5
+  </script>
+  <script id="2" type="application/vnd.observable.javascript">
+    viewof z = Inputs.range([1,20])
+  </script>
+  <script id="3" type="application/vnd.observable.javascript">
+    y = x * z
+  </script>
+  <script id="4" type="application/vnd.observable.javascript">
+    md`test de markdown généré en ojs, la valeur calculée ${y}`
+  </script>
+</notebook>
