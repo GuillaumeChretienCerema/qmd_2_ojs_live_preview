@@ -2,3 +2,16 @@
 _site/
 .Rproj.user/
 .quarto/
+page_0000_le_lab.qmd
+data/indicateurs_multisources_with_geom.geojson
+dico_indicateurs/dictionnaire_des_indicateurs.xlsx
+
+/.quarto/
+**/*.quarto_ipynb
+images/logo/logo_cerema.PNG
+images/logo/logo_cerema_squareBR.PNG
+images/logo/Logo RF Cerema verticalBR.jpg
+images/logo/Logo RF Cerema vertical.jpg
+images/logo/favicon.png
+dico_indicateurs/dictionnaire_des_indicateurs.csv
+page_0000_le_lab.observable.html

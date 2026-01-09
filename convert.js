@@ -12,8 +12,7 @@ if (!filename) {
 const qmdContent = fs.readFileSync(filename, 'utf8');
 
 // Extraire le titre
-const titleMatch = qmdContent.match(/title:\s*"([^"]+)"/);
-const title = titleMatch ? titleMatch[1] : "Temporaire pour visualisation";
+const title = "Temporaire pour prévisualisation";
 
 // Extraire les blocs {ojs}
 const ojsBlocks = qmdContent.match(/```\{ojs\}\s*([\s\S]*?)\s*```/g);
@@ -29,7 +28,9 @@ let htmlContent = `<!doctype html>
 // Ajouter chaque bloc {ojs} comme un script Observable
 ojsBlocks.forEach((block, index) => {
   const code = block.replace(/```\{ojs\}\s*|\s*```/g, '').trim();
-  const pinned = index === 0 ? ' pinned=""' : '';
+  //const pinned = index === 0 ? ' pinned=""' : '';
+  const pinned = '';
+
   htmlContent += `
   <script id="${index + 1}" type="application/vnd.observable.javascript"${pinned}>
     ${code}
